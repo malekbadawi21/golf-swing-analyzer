@@ -1,0 +1,4 @@
+venv/
+videos/
+*.mp4
+.DS_Store
