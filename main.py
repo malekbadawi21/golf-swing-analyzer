@@ -5,7 +5,7 @@ import sys
 from pose_detector import PoseDetector
 
 # Open video file
-video_path = "videos/sample_swing.mp4"
+video_path = "videos/sample_swing2.mov"
 cap = cv2.VideoCapture(video_path)
 
 # Check if video opened successfully
@@ -17,23 +17,31 @@ if not cap.isOpened():
 #Create pose detector 
 detector = PoseDetector(0.7)
 
+#Playback control
+paused = False
+frame_number = 0
+annotated_frame = None
+
 # Main video playback loop
-print("Playing video... Press 'q' to quit")
+print("Playing video... Press SPACE to pause, Press 'q' to quit, use arrow keys to step through")
 
 while True:
     # Read next frame
-    ret, frame = cap.read()
+    if not paused:
+        ret, frame = cap.read()
 
-    # Check if frame was read successfully
-    if not ret:
-        print("End of video reached")
-        break
+        # Check if frame was read successfully
+        if not ret:
+            print("End of video reached")
+            break
 
-    #Detect pose
-    results= detector.detect_pose(frame)
+        frame_number += 1
 
-    #Draw landmarks on the frame
-    annotated_frame= detector.draw_landmarks(frame, results)
+    #Detect pose and get preprocessed frame
+    if not paused or annotated_frame is None:
+        results, processed_frame = detector.detect_pose(frame)
+        #Draw landmarks on the preprocessed frame
+        annotated_frame = detector.draw_landmarks(processed_frame, results)
 
     # Display frame
     cv2.imshow('Golf Swing Analyzer', annotated_frame)
@@ -41,10 +49,36 @@ while True:
     # Wait and check for keypress (100ms = ~10 FPS playback)
     key = cv2.waitKey(100) & 0xFF
 
+    # Temporary debug - remove this later
+    if key != 255:  # 255 means no key pressed
+        print(f"Key pressed: {key}")
+
     # Exit if 'q' pressed
     if key == ord('q'):
         print("Playback stopped by user")
         break
+    elif key == ord(' '): 
+        paused = not paused
+        if paused: print ("Video paused - Use arrow keys to step through; Space to resume")
+        else: print("Video resumed")
+    elif key == 2: #right arrow key
+        if paused: 
+            ret, frame = cap.read()
+            if ret:
+                frame_number += 1
+                annotated_frame = None
+    elif key == 3: #left arrow key
+        if paused and frame_number>1: 
+            frame_number -= 1
+            cap.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
+            ret, frame = cap.read()
+            if ret:
+                annotated_frame= None
+    elif key == ord('r'): 
+        cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+        frame_number = 0
+        paused = False
+        print("Video Restarted")
 
 # Cleanup - release resources
 cap.release()
