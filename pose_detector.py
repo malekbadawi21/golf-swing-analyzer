@@ -9,7 +9,9 @@ class PoseDetector:
             #confidence required to say there is an individual detected
             min_detection_confidence=confidence,
             #confidence required to say the same individual has been tracked
-            min_tracking_confidence=confidence 
+            min_tracking_confidence=confidence,
+            model_complexity=2,
+            smooth_landmarks=True
         )
 
     #normalize frame format for different video codecs
@@ -35,4 +37,25 @@ class PoseDetector:
                 results.pose_landmarks,
                 mp.solutions.pose.POSE_CONNECTIONS
             )
+        return frame
+    
+    def draw_landmarks_with_visibility(self, frame, results, min_visibility=0.3):
+        if results.pose_landmarks:
+            mp.solutions.drawing_utils.draw_landmarks(
+                frame,
+                results.pose_landmarks,
+                mp.solutions.pose.POSE_CONNECTIONS,
+                landmark_drawing_spec=mp.solutions.drawing_utils.DrawingSpec(
+                    color=(0,255,0), thickness=2, circle_radius=2
+                ),
+                connection_drawing_spec=mp.solutions.drawing_utils.DrawingSpec(
+                    color=(0,255,0,), thickness=2
+                )
+            )
+
+            for idx, landmark in enumerate(results.pose_landmarks.landmark):
+                if landmark.visibility < min_visibility:
+                    h, w, _ = frame.shape
+                    cx, cy= int(landmark.x * w), int(landmark.y *h)
+                    cv2.circle(frame, (cx, cy,), 5, (0,0,255), -1) 
         return frame

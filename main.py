@@ -15,7 +15,7 @@ if not cap.isOpened():
     sys.exit(1)
 
 #Create pose detector 
-detector = PoseDetector(0.7)
+detector = PoseDetector(0.5)
 
 #Playback control
 paused = False
@@ -41,17 +41,13 @@ while True:
     if not paused or annotated_frame is None:
         results, processed_frame = detector.detect_pose(frame)
         #Draw landmarks on the preprocessed frame
-        annotated_frame = detector.draw_landmarks(processed_frame, results)
+        annotated_frame = detector.draw_landmarks_with_visibility(processed_frame, results, min_visibility=0.3)
 
     # Display frame
     cv2.imshow('Golf Swing Analyzer', annotated_frame)
 
-    # Wait and check for keypress (100ms = ~10 FPS playback)
+    # Wait and check for keypress (100ms = 10 FPS playback)
     key = cv2.waitKey(100) & 0xFF
-
-    # Temporary debug - remove this later
-    if key != 255:  # 255 means no key pressed
-        print(f"Key pressed: {key}")
 
     # Exit if 'q' pressed
     if key == ord('q'):
@@ -61,13 +57,13 @@ while True:
         paused = not paused
         if paused: print ("Video paused - Use arrow keys to step through; Space to resume")
         else: print("Video resumed")
-    elif key == 2: #right arrow key
+    elif key == 3: #right arrow key
         if paused: 
             ret, frame = cap.read()
             if ret:
                 frame_number += 1
                 annotated_frame = None
-    elif key == 3: #left arrow key
+    elif key == 2: #left arrow key
         if paused and frame_number>1: 
             frame_number -= 1
             cap.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
