@@ -3,9 +3,10 @@
 import cv2
 import sys
 from pose_detector import PoseDetector
+from swing_analyzer import SwingAnalyzer
 
 # Open video file
-video_path = "videos/sample_swing2.mov"
+video_path = "videos/sample_swing3.mov"
 cap = cv2.VideoCapture(video_path)
 
 # Check if video opened successfully
@@ -14,8 +15,12 @@ if not cap.isOpened():
     print("Make sure the file exists in the videos/ folder")
     sys.exit(1)
 
+fps = cap.get(cv2.CAP_PROP_FPS)
+print(f"Video FPS: {fps}")
+
 #Create pose detector 
 detector = PoseDetector(0.5)
+analyzer = SwingAnalyzer(fps)
 
 #Playback control
 paused = False
@@ -39,9 +44,11 @@ while True:
 
     #Detect pose and get preprocessed frame
     if not paused or annotated_frame is None:
-        results, processed_frame = detector.detect_pose(frame)
+        results, processed_frame = detector.detect_pose_hybrid(frame)
         #Draw landmarks on the preprocessed frame
         annotated_frame = detector.draw_landmarks_with_visibility(processed_frame, results, min_visibility=0.3)
+
+    analyzer.analyze_frame(results, frame_number)
 
     # Display frame
     cv2.imshow('Golf Swing Analyzer', annotated_frame)

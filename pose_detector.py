@@ -5,13 +5,18 @@ class PoseDetector:
     def __init__ (self, confidence):
         self.confidence = confidence
 
-        self.pose = mp.solutions.pose.Pose(
-            #confidence required to say there is an individual detected
+        self.pose_smooth = mp.solutions.pose.Pose(
+            static_image_mode=False,
             min_detection_confidence=confidence,
-            #confidence required to say the same individual has been tracked
             min_tracking_confidence=confidence,
             model_complexity=2,
             smooth_landmarks=True
+        )
+
+        self.pose_static = mp.solutions.pose.Pose(
+            static_image_mode=True,
+            min_detection_confidence=confidence,
+            model_complexity=2,
         )
 
     #normalize frame format for different video codecs
@@ -26,9 +31,42 @@ class PoseDetector:
     def detect_pose(self, frame):
         frame = self.preprocess_frame(frame)
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        results = self.pose.process(rgb_frame)
+        results = self.pose_smooth.process(rgb_frame)
         return results, frame
     
+    def detect_pose_hybrid(self, frame, visibility_threshold=0.5):
+        frame = self.preprocess_frame(frame)
+        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        results = self.pose_smooth.process(rgb_frame)
+
+        if not results.pose_landmarks:
+            return results, frame
+        
+        lead_arm_indices = [
+            mp.solutions.pose.PoseLandmark.LEFT_SHOULDER.value,
+            mp.solutions.pose.PoseLandmark.LEFT_ELBOW.value,
+            mp.solutions.pose.PoseLandmark.LEFT_WRIST.value,
+        ]
+
+        needs_redetection = False
+        for idx in lead_arm_indices:
+            if results.pose_landmarks.landmark[idx].visibility < visibility_threshold:
+                needs_redetection = True
+                break
+        
+        if needs_redetection:
+            static_results= self.pose_static.process(rgb_frame)
+            if static_results.pose_landmarks:
+                for idx in lead_arm_indices:
+                    static_landmark = static_results.pose_landmarks.landmark[idx]
+                    if static_landmark.visibility> results.pose_landmarks.landmark[idx].visibility:
+                        results.pose_landmarks.landmark[idx].x = static_landmark.x
+                        results.pose_landmarks.landmark[idx].y = static_landmark.y
+                        results.pose_landmarks.landmark[idx].z = static_landmark.z
+                        results.pose_landmarks.landmark[idx].visibility = static_landmark.visibility
+
+        return results, frame
+        
     #draw landmarks method takes in the frames, checks if person is detected and uses landmarks to connect points
     def draw_landmarks(self, frame, results):
         if results.pose_landmarks:
